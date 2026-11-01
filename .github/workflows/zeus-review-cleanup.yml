@@ -1,0 +1,25 @@
+name: Cancel superseded browser review runs
+on:
+  push:
+    branches: [fix/browser-audit-20261101]
+    paths: [.github/workflows/zeus-review-cleanup.yml]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free runners occupied by superseded revisions of this review branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for run in 41323248106 41323248120 41322517808 41323248019; do
+            branch=$(gh api "repos/$REPO/actions/runs/$run" --jq '.head_branch')
+            state=$(gh api "repos/$REPO/actions/runs/$run" --jq '.status')
+            if [ "$branch" = fix/browser-audit-20261101 ] && [ "$state" != completed ]; then
+              gh api --method POST "repos/$REPO/actions/runs/$run/cancel"
+            fi
+          done
