@@ -45,7 +45,13 @@ project.root_object.package_references << auth_package
   item.package_product_dependencies << auth_product
   auth_build = project.new(Xcodeproj::Project::Object::PBXBuildFile)
   auth_build.product_ref = auth_product
-  item.frameworks_build_phase.files << auth_build
+  # The static browser module needs Auth for compilation; the app links it once.
+  # Archiving Auth into libZEUSBrowser as well produces duplicate symbols.
+  if item == app
+    item.frameworks_build_phase.files << auth_build
+  else
+    auth_build.remove_from_project
+  end
 end
 # Pin image OCR runtime for both the browser module and the containing app.
 ort_package = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)

@@ -77,6 +77,9 @@ enum ComicFailure: LocalizedError {
 enum ComicIdentity {
     static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     static func hash(_ text: String) -> String { hash(Data(text.utf8)) }
+    static func segmentIdentity(_ segments:[TranslationSegment])->String {
+        hash(segments.map{$0.id+"\0"+$0.text}.joined(separator:"\n"))
+    }
     static func settings(_ preferences: ComicPreferences, translation: TranslationPreferences, provider: AIProviderConfiguration?) -> String {
         hash("comic-v1|\(preferences.mode.rawValue)|\(preferences.source)|\(translation.target)|" + TranslationMemory.namespace(page: "comic://content", preferences: translation, provider: provider))
     }

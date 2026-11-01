@@ -9,6 +9,13 @@ import UIKit
 
 @MainActor final class NativeComicTranslationTests:XCTestCase{
     private func renderer(_ size:CGSize)->UIGraphicsImageRenderer{let format=UIGraphicsImageRendererFormat();format.scale=1;return UIGraphicsImageRenderer(size:size,format:format)}
+    func testContextWindowCacheSeparatesOwnedSpeechSubsets() {
+        let first=[TranslationSegment(id:"upper",text:"HELLO")]
+        let second=[TranslationSegment(id:"lower",text:"GOODBYE")]
+        XCTAssertNotEqual(ComicIdentity.segmentIdentity(first),ComicIdentity.segmentIdentity(second))
+        XCTAssertNotEqual(ComicIdentity.segmentIdentity(first),ComicIdentity.segmentIdentity(first+second))
+        XCTAssertEqual(ComicIdentity.segmentIdentity(first),ComicIdentity.segmentIdentity(first))
+    }
     func testRegionsOwnEveryRowExactlyOnceAndBoundPixels(){
         let regions=ComicGeometry.regions(width:1500,height:70000)
         XCTAssertGreaterThan(regions.count,10)

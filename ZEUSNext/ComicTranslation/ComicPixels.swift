@@ -54,14 +54,14 @@ enum ComicPixels {
         guard rect.width>2,rect.height>2 else{return nil}
         let style=NSMutableParagraphStyle();style.alignment = .center;style.baseWritingDirection=TranslationPreferences.rtl(target) ? .rightToLeft:.leftToRight;style.lineBreakMode = .byWordWrapping
         var low:CGFloat=6,high=min(96,rect.height),best:TextLayout?
-        for _ in 0..<9{let size=(low+high)/2,font=CTFontCreateWithName((fontName ?? "ArialMT")as CFString,size,nil)
+        for _ in 0..<9{let size=(low+high)/2,font=CTFontCreateWithName((fontName ?? (TranslationPreferences.rtl(target) ? "GeezaPro":"ArialMT"))as CFString,size,nil)
             let value=NSAttributedString(string:text,attributes:[NSAttributedString.Key(kCTFontAttributeName as String):font,.paragraphStyle:style])
             let setter=CTFramesetterCreateWithAttributedString(value);var fit=CFRange();let measured=CTFramesetterSuggestFrameSizeWithConstraints(setter,CFRange(),nil,CGSize(width:rect.width,height:CGFloat.greatestFiniteMagnitude),&fit)
             if measured.height<=rect.height && measured.width<=rect.width+0.5 && fit.length==value.length{best=TextLayout(text:value,height:ceil(measured.height),size:size);low=size}else{high=size}
         }
         guard let best else{return nil}
         let chosen=min(best.size,max(6,best.size*CGFloat(min(1.5,max(0.5,fontScale)))*0.8))
-        let font=CTFontCreateWithName((fontName ?? "ArialMT")as CFString,chosen,nil)
+        let font=CTFontCreateWithName((fontName ?? (TranslationPreferences.rtl(target) ? "GeezaPro":"ArialMT"))as CFString,chosen,nil)
         let text=NSAttributedString(string:text,attributes:[NSAttributedString.Key(kCTFontAttributeName as String):font,.paragraphStyle:style])
         let measured=CTFramesetterSuggestFrameSizeWithConstraints(CTFramesetterCreateWithAttributedString(text),CFRange(),nil,CGSize(width:rect.width,height:CGFloat.greatestFiniteMagnitude),nil)
         return TextLayout(text:text,height:ceil(measured.height),size:chosen)
