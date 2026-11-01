@@ -323,3 +323,28 @@ private struct SurfaceSelectionFixture: View {
     @ObservedObject var selection: SurfaceSelection
     var body: some View { WebSurface(webView: selection.view) }
 }
+
+@MainActor final class BrowserSessionBoundaryTests: XCTestCase {
+    func testLockedSessionCannotOpenOrPrepareTabs() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = BrowserModel(profiles: ProfileStore(root: root, downloadsRoot: root.appendingPathComponent("Downloads")), useBackgroundDownloads: false)
+        let tab = try XCTUnwrap(model.current)
+        let count = model.tabs.count
+        model.requiresUnlock = true
+        XCTAssertNil(model.newTab(url: URL(string: "https://example.com")!))
+        let view = await model.prepare(tab)
+        XCTAssertNil(view)
+        XCTAssertEqual(model.tabs.count, count)
+    }
+    func testClosedTabCannotBeRecreatedByDelayedPreparation() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = BrowserModel(profiles: ProfileStore(root: root, downloadsRoot: root.appendingPathComponent("Downloads")), useBackgroundDownloads: false)
+        let tab = try XCTUnwrap(model.current)
+        model.closeTab(tab)
+        let view = await model.prepare(tab)
+        XCTAssertNil(view)
+        XCTAssertNil(tab.webView)
+    }
+}

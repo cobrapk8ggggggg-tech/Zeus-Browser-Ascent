@@ -1,9 +1,16 @@
-const CACHE_NAME = 'chatzeus-cache-v1';
+const CACHE_NAME = 'chatzeus-cache-v2';
 const urlsToCache = [
   '/',
   '/index.html',
   '/style.css',
-  '/script.js',
+  '/core.js',
+  '/auth.js',
+  '/chat_management.js',
+  '/chat_stream.js',
+  '/files.js',
+  '/settings.js',
+  '/ui_misc.js',
+  '/ui_providers.js',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
@@ -20,6 +27,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -37,7 +45,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
+          if (cacheName.startsWith('chatzeus-cache-') && cacheWhitelist.indexOf(cacheName) === -1) {
             return caches.delete(cacheName);
           }
         })

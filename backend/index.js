@@ -4,19 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-try {
-    const envConfig = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
-    envConfig.split('\n').forEach(line => {
-        const [key, value] = line.split('=');
-        if (key && value) {
-            process.env[key.trim()] = value.trim();
-        }
-    });
-    console.log('✅ Environment variables loaded manually.');
-} catch (error) {
-    // ✨ لا توقف الخادم، فقط اعرض تحذيرًا بأنه سيستخدم متغيرات البيئة من المنصة ✨
-    console.warn('⚠️  Could not find .env file. Using platform environment variables instead.');
-}
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 
 // =================================================================
@@ -34,7 +22,8 @@ const User = require('./models/user.model.js');
 const Chat = require('./models/chat.model.js');
 const Settings = require('./models/settings.model.js');
 const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
+const { createEventDecoder } = require('./stream-events');
 
 // =================================================================
 // 3. إعداد تطبيق Express والخادم
@@ -826,21 +815,18 @@ function streamOpenAICompatibleAPI(options, body, res) {
                 return;
             }
             res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Transfer-Encoding': 'chunked' });
-            apiResponse.on('data', (chunk) => {
-                const lines = chunk.toString().split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-                        if (data.trim() === '[DONE]') continue;
-                        try {
-                            const parsed = JSON.parse(data);
-                            const text = parsed.choices?.[0]?.delta?.content || '';
-                            if (text) res.write(text);
-                        } catch (e) {}
-                    }
-                }
+            const events = createEventDecoder(data => {
+                if (data.trim() === '[DONE]') return;
+                try {
+                    const parsed = JSON.parse(data);
+                    const text = parsed.choices?.[0]?.delta?.content || '';
+                    if (text) res.write(text);
+                } catch { /* Ignore non-JSON provider events. */ }
             });
-            apiResponse.on('end', () => { res.end(); resolve(); });
+            apiResponse.on('data', chunk => events.write(chunk));
+            apiResponse.on('error', reject);
+            apiResponse.on('aborted', () => reject(new Error('Provider stream interrupted')));
+            apiResponse.on('end', () => { events.end(); res.end(); resolve(); });
         });
         request.on('error', reject);
         request.write(body);

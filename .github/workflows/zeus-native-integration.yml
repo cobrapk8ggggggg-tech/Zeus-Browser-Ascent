@@ -3,6 +3,7 @@ name: ZEUS native browser integration tests
   push:
     branches:
     - main
+    - fix/browser-audit-20261101
     - build/zeus-unsigned-ipa-repair-20261023
     - fix/zeus-agent-tools-permissions-20261023
     - feature/zeus-project-agent-20261023

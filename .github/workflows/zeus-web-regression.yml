@@ -1,0 +1,18 @@
+name: ZEUS web regression tests
+on:
+  push:
+    paths: ['frontend/**', 'backend/**', '.github/workflows/zeus-web-regression.yml']
+  pull_request:
+    paths: ['frontend/**', 'backend/**', '.github/workflows/zeus-web-regression.yml']
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test backend/stream-events.test.js frontend/assets.test.cjs
+      - run: node --check backend/index.js

@@ -94,7 +94,11 @@ import UIKit
     }
     func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) { completionHandler(.performDefaultHandling, nil) }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        guard let model, navigationAction.targetFrame == nil, model.tabs.count < 30 else { return nil }
+        guard let model, let opener = tab, model.profile.id == opener.profileID,
+              !model.requiresUnlock, !model.switching,
+              model.tabs.contains(where: { $0 === opener }),
+              navigationAction.targetFrame == nil, model.tabs.count < 30 else { return nil }
+        if let url = navigationAction.request.url, BrowserURL.isWeb(url), !model.permits(url) { return nil }
         let saved = SavedTab(title: "صفحة جديدة", url: navigationAction.request.url?.absoluteString ?? "about:blank")
         let tab = BrowserTab(saved: saved, profileID: model.profile.id)
         // WebKit supplies the opener's configuration and data store. Keep that
@@ -106,7 +110,7 @@ import UIKit
         tab.webView = view; tab.driver = driver; driver.observe(view)
         let translation = PageTranslation(model: model, tab: tab); tab.translation = translation; translation.attach(to: view, installScript: false)
         let comic = ComicTranslation(model: model, tab: tab); tab.comicTranslation = comic; comic.attach(to: view, installScript: false)
-        model.tabs.append(tab); model.selectedTabID = tab.id; model.persist()
+        model.tabs.append(tab); model.selectedTabID = tab.id; model.twinFocused = false; model.address = tab.url; model.persist()
         return view
     }
     func webViewDidClose(_ webView: WKWebView) { if let tab { model?.closeTab(tab) } }

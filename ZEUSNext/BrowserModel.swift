@@ -131,8 +131,8 @@ struct WebDialog: Identifiable {
     func changed() { objectWillChange.send() }
     func notify(_ text: String) { notice = BrowserNotice(text: text) }
     func prepare(_ tab: BrowserTab, supplied: WKWebViewConfiguration? = nil) async -> WKWebView? {
+        guard tab.profileID == profile.id, !requiresUnlock, !switching, tabs.contains(where: { $0 === tab }) else { return nil }
         if let view = tab.webView { return view }
-        guard tab.profileID == profile.id, !requiresUnlock, !switching else { return nil }
         let owner = profile, settings = data.settings
         let options = settings.advanced ?? AdvancedSettings()
         let config = supplied ?? WKWebViewConfiguration()
@@ -205,6 +205,10 @@ struct WebDialog: Identifiable {
         Task { if let view = await prepare(tab), profile.id == tab.profileID { view.load(request) } }
     }
     @discardableResult func newTab(url: URL? = nil, foreground: Bool? = nil) -> BrowserTab? {
+        guard !requiresUnlock, !switching else { return nil }
+        if let url {
+            guard BrowserURL.isWeb(url), permits(url) else { notify("هذا الرابط غير مسموح لهذه المساحة."); return nil }
+        }
         guard tabs.count < 30 else { notify("الحد الحالي 30 تبويبًا لحماية ذاكرة الجهاز."); return nil }
         let activate = foreground ?? (url == nil || data.settings.advanced?.openTabsInBackground != true)
         if activate { snapshotCurrent() }
