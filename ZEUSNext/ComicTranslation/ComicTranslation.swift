@@ -152,7 +152,7 @@ import CoreGraphics
                     }
                     if textResults.count>=64{textResults.removeAll()};textResults[translationKey]=translated
                     try valid(ticket);stage="تنظيف الفقاعات ورسم العربية"
-                    let renderedKey=translationKey+"|render-v3|\(prefs.fontName ?? "default")|\(prefs.fontScale)|\(prefs.textColor ?? "auto")"
+                    let renderedKey=translationKey+"|render-v4|\(prefs.fontName ?? "default")|\(prefs.fontScale)|\(prefs.textColor ?? "auto")"
                     let rendered:Data
                     if persistent,let stored=await ComicMemory.shared.data(profile:owner,layer:.rendered,key:renderedKey){rendered=stored}
                     else{rendered=try await Task.detached{let drawn=try ComicPixels.render(image,speeches:core,translations:translated,target:translation.target,fontName:prefs.fontName,fontScale:prefs.fontScale,textColor:prefs.textColor)

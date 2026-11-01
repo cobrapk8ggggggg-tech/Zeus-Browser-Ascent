@@ -17,6 +17,9 @@ CORE = [
     "testArabicLetteringChangesActualPixelsInsideTheBalloon",
     "testArabicCoreTextFitsAndColorIsValidated",
     "testActualLocalOCRReadsRasterText",
+    "testContextWindowCacheSeparatesOwnedSpeechSubsets",
+    "testInteriorSamplingRejectsDarkBalloonOutline",
+    "testEndToEndImagesDoNotTranslateDOMAndFontChangesReuseOCRAndProvider",
 ]
 PADDLE = "testActualPinnedPaddleModelReadsRasterText"
 END_TO_END = "testEndToEndImagesDoNotTranslateDOMAndFontChangesReuseOCRAndProvider"
@@ -37,7 +40,7 @@ def main(log_path, out_path):
     if failed:
         raise SystemExit(f"core pipeline tests failed: {sorted(failed)}")
     evidence = {
-        "passed_tests": ["bridge", "decoder", "simulator", "live"],
+        "passed_tests": ["simulator"],
         "core_passed": CORE + ([PADDLE] if PADDLE in passed else []),
         "end_to_end_webkit": END_TO_END in passed,
         "total_test_cases": len(tests),

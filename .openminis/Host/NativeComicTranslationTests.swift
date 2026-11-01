@@ -9,6 +9,18 @@ import UIKit
 
 @MainActor final class NativeComicTranslationTests:XCTestCase{
     private func renderer(_ size:CGSize)->UIGraphicsImageRenderer{let format=UIGraphicsImageRendererFormat();format.scale=1;return UIGraphicsImageRenderer(size:size,format:format)}
+    func testInteriorSamplingRejectsDarkBalloonOutline() throws {
+        let raster=renderer(CGSize(width:100,height:100)).image { context in
+            UIColor.black.setFill();context.fill(CGRect(x:0,y:0,width:100,height:100))
+            UIColor.white.setFill();context.fill(CGRect(x:12,y:12,width:76,height:76))
+        }
+        let pixels=try XCTUnwrap(ComicPixels.rgba(try XCTUnwrap(raster.cgImage),width:100,height:100))
+        let background=ComicPixels.backgroundColor(pixels,width:100,height:100,rect:CGRect(x:8,y:8,width:84,height:84),excluding:[CGRect(x:30,y:40,width:40,height:20)])
+        XCTAssertGreaterThan(background.0,0.95)
+        XCTAssertGreaterThan(background.1,0.95)
+        let ink=ComicPixels.automaticInk((0.5,0.5,0.5))
+        XCTAssertLessThan(try XCTUnwrap(ink.components?.first),0.1,"Medium gray needs the higher-contrast black ink")
+    }
     func testContextWindowCacheSeparatesOwnedSpeechSubsets() {
         let first=[TranslationSegment(id:"upper",text:"HELLO")]
         let second=[TranslationSegment(id:"lower",text:"GOODBYE")]

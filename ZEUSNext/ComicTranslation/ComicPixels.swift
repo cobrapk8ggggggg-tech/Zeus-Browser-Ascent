@@ -33,13 +33,13 @@ enum ComicPixels {
             let pad=speech.balloon ? 0:max(2,min(speech.rect.width,speech.rect.height)*0.08)
             let area=speech.rect.insetBy(dx:-pad,dy:-pad).intersection(CGRect(x:0,y:0,width:image.width,height:image.height)).integral
             guard area.width>3,area.height>3 else{continue}
-            let background=backgroundColor(pixels,width:image.width,height:image.height,rect:area)
+            let background=backgroundColor(pixels,width:image.width,height:image.height,rect:area,excluding:speech.lines.map(\.rect))
             // Prepare layout before erasing any source text. Failed fit leaves the original.
             guard let layout=layout(text,rect:area.insetBy(dx:2,dy:2),target:target,fontName:fontName,fontScale:fontScale)else{throw ComicFailure.message("لم يتسع النص للفقاعة؛ بقي الأصل دون مسح.")}
             // Erase foreground components only inside detected source lines. Uniform
             // fills are confined to the text masks; balloon borders remain untouched.
             clean(context,pixels:pixels,width:image.width,height:image.height,speech:speech,background:background)
-            let automatic=background.0*0.2126+background.1*0.7152+background.2*0.0722>0.5 ? CGColor(gray:0.04,alpha:1):CGColor(gray:0.98,alpha:1)
+            let automatic=automaticInk(background)
             let color=textColor.flatMap(Self.color) ?? automatic
             context.saveGState();context.setFillColor(color);context.textMatrix = .identity
             let box=CGRect(x:area.minX+2,y:CGFloat(image.height)-area.maxY+2+(area.height-4-layout.height)/2,width:area.width-4,height:layout.height)
@@ -66,11 +66,34 @@ enum ComicPixels {
         let measured=CTFramesetterSuggestFrameSizeWithConstraints(CTFramesetterCreateWithAttributedString(text),CFRange(),nil,CGSize(width:rect.width,height:CGFloat.greatestFiniteMagnitude),nil)
         return TextLayout(text:text,height:ceil(measured.height),size:chosen)
     }
-    private static func backgroundColor(_ pixels:[UInt8],width:Int,height:Int,rect:CGRect)->(CGFloat,CGFloat,CGFloat){
+    static func automaticInk(_ background:(CGFloat,CGFloat,CGFloat))->CGColor {
+        func linear(_ c:CGFloat)->CGFloat { c<=0.04045 ? c/12.92:pow((c+0.055)/1.055,2.4) }
+        let luminance=0.2126*linear(background.0)+0.7152*linear(background.1)+0.0722*linear(background.2)
+        let black=(luminance+0.05)/(linear(0.04)+0.05)
+        let white=(linear(0.98)+0.05)/(luminance+0.05)
+        return black>=white ? CGColor(gray:0.04,alpha:1):CGColor(gray:0.98,alpha:1)
+    }
+    static func backgroundColor(_ pixels:[UInt8],width:Int,height:Int,rect:CGRect,excluding:[CGRect]=[])->(CGFloat,CGFloat,CGFloat){
         var bins:[Int:(Int,Int,Int,Int)]=[:]
         let x0=max(0,Int(rect.minX)-3),x1=min(width-1,Int(rect.maxX)+3),y0=max(0,Int(rect.minY)-3),y1=min(height-1,Int(rect.maxY)+3)
         guard x1>=x0,y1>=y0 else{return(1,1,1)}
-        for y in y0...y1{for x in x0...x1 where x<x0+3||x>x1-3||y<y0+3||y>y1-3{let i=(y*width+x)*4,r=Int(pixels[i]),g=Int(pixels[i+1]),b=Int(pixels[i+2]),key=(r/32)*64+(g/32)*8+b/32,old=bins[key] ?? (0,0,0,0);bins[key]=(old.0+r,old.1+g,old.2+b,old.3+1)}}
+        func sample(_ x:Int,_ y:Int) {
+            let i=(y*width+x)*4,r=Int(pixels[i]),g=Int(pixels[i+1]),b=Int(pixels[i+2])
+            let key=(r/32)*64+(g/32)*8+b/32,old=bins[key] ?? (0,0,0,0)
+            bins[key]=(old.0+r,old.1+g,old.2+b,old.3+1)
+        }
+        // Sample the inside of the balloon, excluding source glyph boxes. A
+        // dark outline or textured panel outside the balloon must not set its fill.
+        let inside=rect.insetBy(dx:rect.width*0.12,dy:rect.height*0.12).integral
+        let strideSize=max(1,Int(sqrt(max(1,inside.width*inside.height)/4096)))
+        for y in stride(from:max(0,Int(inside.minY)),to:min(height,Int(inside.maxY)),by:strideSize) {
+            for x in stride(from:max(0,Int(inside.minX)),to:min(width,Int(inside.maxX)),by:strideSize) {
+                if !excluding.contains(where:{$0.insetBy(dx:-2,dy:-2).contains(CGPoint(x:x,y:y))}) { sample(x,y) }
+            }
+        }
+        if bins.isEmpty {
+            for y in y0...y1{for x in x0...x1 where x<x0+3||x>x1-3||y<y0+3||y>y1-3{sample(x,y)}}
+        }
         guard let value=bins.values.max(by:{$0.3<$1.3}),value.3>0 else{return(1,1,1)}
         return(CGFloat(value.0)/CGFloat(value.3*255),CGFloat(value.1)/CGFloat(value.3*255),CGFloat(value.2)/CGFloat(value.3*255))
     }
